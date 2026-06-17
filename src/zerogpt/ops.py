@@ -42,3 +42,18 @@ def mat_vec_product(mat: Matrix, vec: Vector) -> Vector:
 
 def linear(vec: Vector, mat: Matrix) -> Vector:
     return mat_vec_product(mat, vec)
+
+
+def softmax(vec: Vector) -> Vector:
+    max_value = max(elem.value for elem in vec)
+    shifted = [elem - max_value for elem in vec]
+    exps = [elem.exp() for elem in shifted]
+    sum_exps = AutoGradNode.sum(elem for elem in exps)
+    return [elem / sum_exps for elem in exps]
+
+
+def log_softmax(vec: Vector) -> Vector:
+    max_value = max(elem.value for elem in vec)
+    shifted = [elem - max_value for elem in vec]
+    log_sum_exps = AutoGradNode.sum(elem.exp() for elem in shifted).log()
+    return [elem - log_sum_exps for elem in shifted]

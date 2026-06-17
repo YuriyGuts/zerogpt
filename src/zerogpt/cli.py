@@ -1,37 +1,51 @@
+import gc
+import random
+from contextlib import contextmanager
 from pathlib import Path
 
-from zerogpt.autograd import AutoGradNode
-from zerogpt.tokenizer import Tokenizer
+from zerogpt.runner import predict
+from zerogpt.runner import train
+from zerogpt.serialization import load_model
+
+
+@contextmanager
+def gc_disabled():
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        yield
+    finally:
+        if was_enabled:
+            gc.enable()
 
 
 def main() -> None:
+    random.seed(1234)
     data_dir = Path(__file__).parent.parent.parent / "data"
     dataset_path = data_dir / "ua-settlement-names.txt"
     docs = dataset_path.read_text().splitlines(keepends=False)
 
-    print("--- Tokenizer ---")
-    tokenizer = Tokenizer()
-    tokenizer.train(docs)
-    lviv_encoded = tokenizer.encode("ЛЬВІВ")
-    lviv_decoded = tokenizer.decode(lviv_encoded)
+    gpt_params, tokenizer = load_model(
+        data_dir / "gpt-vocab-38-seq-20-emb-16-transf-1-attn-4.model"
+    )
 
-    print(f"encode(ЛЬВІВ): {lviv_encoded}")
-    print(f"decode({lviv_encoded}): {lviv_decoded}")
+    with gc_disabled():
+        train(
+            docs=docs,
+            iter_count=1000,
+            batch_size=32,
+            checkpoint_freq=20,
+        )
 
-    print()
-    print("--- Autograd ---")
-    a = AutoGradNode(2.0)
-    b = AutoGradNode(3.0)
-    f = a + b
-    g = a * f
-    h = a - g
-    h.backpropagate()
-
-    print(f"a) value: {a.value:7.2f}  grad: {a.grad:7.2f}")
-    print(f"b) value: {b.value:7.2f}  grad: {b.grad:7.2f}")
-    print(f"f) value: {f.value:7.2f}  grad: {f.grad:7.2f}")
-    print(f"g) value: {g.value:7.2f}  grad: {g.grad:7.2f}")
-    print(f"h) value: {h.value:7.2f}  grad: {h.grad:7.2f}")
+    while True:
+        prompt = input("Enter your prompt: ")
+        prediction = predict(
+            gpt_params=gpt_params,
+            tokenizer=tokenizer,
+            prompt=prompt,
+            temperature=0.5,
+        )
+        print(prediction)
 
 
 if __name__ == "__main__":
