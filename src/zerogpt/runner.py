@@ -1,3 +1,4 @@
+import itertools
 import random
 import time
 from collections import deque
@@ -17,7 +18,7 @@ def train(
     iter_count: int,
     batch_size: int,
     checkpoint_freq: int | None = None,
-) -> None:
+) -> tuple[GPTParams, Tokenizer]:
     print("Training the tokenizer...")
     tokenizer = Tokenizer()
     tokenizer.train(docs)
@@ -44,17 +45,11 @@ def train(
     tokenized_docs = [tokenizer.encode(doc)[: gpt_params.max_sequence_length] for doc in docs]
     random.shuffle(tokenized_docs)
     batch_loss_history = deque(maxlen=50)
-
-    # [(0, 31), (32, 63), ...]
-    batches = [
-        (batch_start_idx, min(batch_start_idx + batch_size, len(tokenized_docs)))
-        for batch_start_idx in range(0, len(tokenized_docs), batch_size)
-    ]
+    batches = list(itertools.batched(tokenized_docs, batch_size))
 
     for iter_idx in range(iter_count):
         iter_start_time = time.monotonic()
-        batch_start, batch_end = batches[iter_idx % len(batches)]
-        batch_docs = tokenized_docs[batch_start:batch_end]
+        batch_docs = batches[iter_idx % len(batches)]
         batch_losses = []
 
         for doc in batch_docs:
@@ -92,6 +87,8 @@ def train(
             output_path = save_model(gpt_params, tokenizer, extra_id=f"iter-{iters_done}")
             print(f"Model saved to {output_path}")
             make_sample_predictions(gpt_params, tokenizer, 10)
+
+    return gpt_params, tokenizer
 
 
 def predict(

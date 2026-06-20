@@ -6,7 +6,6 @@ from pathlib import Path
 
 from zerogpt.runner import predict
 from zerogpt.runner import train
-from zerogpt.serialization import load_model
 
 
 @contextmanager
@@ -26,12 +25,8 @@ def main() -> None:
     dataset_path = data_dir / "ua-settlement-names.txt"
     docs = dataset_path.read_text().splitlines(keepends=False)
 
-    gpt_params, tokenizer = load_model(
-        data_dir / "gpt-vocab-38-seq-20-emb-16-transf-1-attn-4.model"
-    )
-
     with gc_disabled():
-        train(
+        gpt_params, tokenizer = train(
             docs=docs,
             iter_count=1000,
             batch_size=32,
