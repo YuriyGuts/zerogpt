@@ -113,7 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     predict_parser.add_argument(
         "--temperature",
-        help="The temperature for next token sampling.",
+        help="The temperature for next token sampling (0 = greedy/deterministic).",
         type=float,
         default=0.5,
     )

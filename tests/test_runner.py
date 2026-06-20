@@ -145,6 +145,44 @@ def test_predict_continues_the_prompt():
     assert len(result) <= params.max_sequence_length
 
 
+def test_predict_greedy_is_deterministic():
+    # GIVEN an (untrained) model and tokenizer
+    random.seed(0)
+    tokenizer = Tokenizer()
+    tokenizer.train(["abab", "baba"])
+    params = _untrained_model(tokenizer)
+
+    # WHEN generating greedily (temperature=0) twice, without reseeding in between
+    first = predict(params, tokenizer, prompt="ab", temperature=0)
+    second = predict(params, tokenizer, prompt="ab", temperature=0)
+
+    # THEN the output is identical across runs (greedy decoding draws no random samples)
+    assert first == second
+    assert first.startswith("ab")
+
+
+def test_predict_greedy_picks_the_argmax_token():
+    # GIVEN a model whose weights are all zero, so every logit is identical (0.0).
+    # With ties, argmax resolves to the first token id (0), which decodes to the first vocab char.
+    tokenizer = Tokenizer()
+    tokenizer.train(["abc"])
+    params = GPTParams.create(
+        vocab_size=tokenizer.vocab_size,
+        embedding_dim=8,
+        max_sequence_length=6,
+        transformer_block_count=1,
+    )
+    for param in params:
+        param.value = 0.0
+
+    # WHEN generating greedily from an empty prompt
+    result = predict(params, tokenizer, prompt="", temperature=0)
+
+    # THEN greedy keeps emitting token id 0 ("a") until the context window fills up
+    assert set(result) == {"a"}
+    assert len(result) >= 1
+
+
 def test_predict_rejects_prompt_longer_than_context():
     # GIVEN a model with a very short context window
     tokenizer = Tokenizer()

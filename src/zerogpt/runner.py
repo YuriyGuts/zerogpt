@@ -154,6 +154,7 @@ def predict(
     ----------
     temperature
         The sampling temperature. Lower values make the output more deterministic.
+        0 picks the single most likely token at every step (greedy decoding).
 
     Returns
     -------
@@ -184,13 +185,21 @@ def predict(
             continue
 
         # Decode.
-        output_probs = softmax([elem / temperature for elem in output_logits])
-        output_probs = [elem.value for elem in output_probs]
-        next_token_id = random.choices(
-            population=range(gpt_params.vocab_size),
-            weights=output_probs,
-            k=1,
-        )[0]
+        if temperature == 0:
+            # Greedy sampling: deterministically pick the most likely token.
+            next_token_id = max(
+                range(gpt_params.vocab_size),
+                key=lambda token_id: output_logits[token_id].value,
+            )
+        else:
+            # Probabilistic sampling: sample the next token using the predictions as weights.
+            output_probs = softmax([elem / temperature for elem in output_logits])
+            output_probs = [elem.value for elem in output_probs]
+            next_token_id = random.choices(
+                population=range(gpt_params.vocab_size),
+                weights=output_probs,
+                k=1,
+            )[0]
         tokens.append(next_token_id)
         if next_token_id == tokenizer.eos_token or len(tokens) >= gpt_params.max_sequence_length:
             break
