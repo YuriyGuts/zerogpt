@@ -1,5 +1,5 @@
 # Model checkpoints
-*.model
+data/gpt-*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

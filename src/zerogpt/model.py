@@ -21,6 +21,14 @@ def create_random_matrix(rows: int, cols: int, stddev: float = 0.02) -> Matrix:
     ]
 
 
+def matrix_values(matrix: Matrix) -> list[list[float]]:
+    return [[node.value for node in row] for row in matrix]
+
+
+def matrix_from_values(values: list[list[float]]) -> Matrix:
+    return [[AutoGradNode(value) for value in row] for row in values]
+
+
 class KVCache:
     def __init__(self, block_count: int) -> None:
         self._keys: list[list[Vector]] = [[] for _ in range(block_count)]
@@ -122,6 +130,40 @@ class GPTParams:
 
     def create_kv_cache(self) -> KVCache:
         return KVCache(self.transformer_block_count)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "attn_head_count": self.attn_head_count,
+            "weights": {
+                "w_token_emb": matrix_values(self.w_token_emb),
+                "w_position_emb": matrix_values(self.w_position_emb),
+                "w_transformer_attn_q": [matrix_values(m) for m in self.w_transformer_attn_q],
+                "w_transformer_attn_k": [matrix_values(m) for m in self.w_transformer_attn_k],
+                "w_transformer_attn_v": [matrix_values(m) for m in self.w_transformer_attn_v],
+                "w_transformer_attn_out": [matrix_values(m) for m in self.w_transformer_attn_out],
+                "w_transformer_mlp_fc1": [matrix_values(m) for m in self.w_transformer_mlp_fc1],
+                "w_transformer_mlp_fc2": [matrix_values(m) for m in self.w_transformer_mlp_fc2],
+                "w_lm_head": matrix_values(self.w_lm_head),
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> GPTParams:
+        weights = data["weights"]
+        return cls(
+            attn_head_count=data["attn_head_count"],
+            w_token_emb=matrix_from_values(weights["w_token_emb"]),
+            w_position_emb=matrix_from_values(weights["w_position_emb"]),
+            w_transformer_attn_q=[matrix_from_values(m) for m in weights["w_transformer_attn_q"]],
+            w_transformer_attn_k=[matrix_from_values(m) for m in weights["w_transformer_attn_k"]],
+            w_transformer_attn_v=[matrix_from_values(m) for m in weights["w_transformer_attn_v"]],
+            w_transformer_attn_out=[
+                matrix_from_values(m) for m in weights["w_transformer_attn_out"]
+            ],
+            w_transformer_mlp_fc1=[matrix_from_values(m) for m in weights["w_transformer_mlp_fc1"]],
+            w_transformer_mlp_fc2=[matrix_from_values(m) for m in weights["w_transformer_mlp_fc2"]],
+            w_lm_head=matrix_from_values(weights["w_lm_head"]),
+        )
 
     def __iter__(self) -> Iterator[AutoGradNode]:
         yield from chain(

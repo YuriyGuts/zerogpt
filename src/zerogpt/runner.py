@@ -84,7 +84,7 @@ def train(
 
         if checkpoint_freq and iters_done % checkpoint_freq == 0:
             print(f"===== Checkpoint after {iters_done} iterations =====")
-            output_path = save_model(gpt_params, tokenizer, extra_id=f"iter-{iters_done}")
+            output_path = save_model(gpt_params, tokenizer, extra_id=f"iter-{iters_done:05d}")
             print(f"Model saved to {output_path}")
             make_sample_predictions(gpt_params, tokenizer, 10)
 

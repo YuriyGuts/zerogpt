@@ -1,11 +1,28 @@
+from __future__ import annotations
+
+
 class Tokenizer:
     def __init__(self) -> None:
         self._vocab = []
         self._char_to_token_id = {}
 
+    @classmethod
+    def from_vocab(cls, vocab: list[str]) -> Tokenizer:
+        tokenizer = cls()
+        tokenizer._vocab = list(vocab)
+        tokenizer._char_to_token_id = {
+            char: token_id for token_id, char in enumerate(tokenizer._vocab)
+        }
+        return tokenizer
+
     def _ensure_trained(self) -> None:
         if not self._vocab:
             raise RuntimeError("Tokenizer must be trained first")
+
+    @property
+    def vocab(self) -> list[str]:
+        self._ensure_trained()
+        return list(self._vocab)
 
     @property
     def vocab_size(self) -> int:

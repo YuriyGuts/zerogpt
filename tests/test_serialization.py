@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from tests.helpers import maybe_import
@@ -55,7 +57,7 @@ def test_save_model_filename_encodes_hyperparameters(params, tokenizer, temp_dat
     assert "seq-4" in name
     assert "transf-1" in name
     assert "attn-2" in name
-    assert name.endswith(".model")
+    assert name.endswith(".json")
 
 
 def test_save_model_filename_includes_extra_id(params, tokenizer, temp_data_dir):
@@ -72,8 +74,8 @@ def test_save_model_filename_omits_extra_id_when_empty(params, tokenizer, temp_d
     # WHEN saving the model
     saved_path = save_model(params, tokenizer)
 
-    # THEN no trailing `-` separator appears before the `.model` extension
-    assert not saved_path.name.endswith("-.model")
+    # THEN no trailing `-` separator appears before the `.json` extension
+    assert not saved_path.name.endswith("-.json")
 
 
 def test_load_model_round_trip_preserves_hyperparameters(params, tokenizer, temp_data_dir):
@@ -114,3 +116,61 @@ def test_load_model_round_trip_preserves_tokenizer_behavior(params, tokenizer, t
     # THEN the loaded tokenizer encodes and decodes identically to the original
     assert loaded_tokenizer.encode("abc") == tokenizer.encode("abc")
     assert loaded_tokenizer.decode([0, 1, 2]) == tokenizer.decode([0, 1, 2])
+
+
+def test_save_model_writes_valid_structured_json(params, tokenizer, temp_data_dir):
+    # GIVEN a saved model
+    saved_path = save_model(params, tokenizer)
+
+    # WHEN reading the file back as plain JSON
+    state = json.loads(saved_path.read_text(encoding="utf-8"))
+
+    # THEN it is a self-describing, structured checkpoint
+    assert state["format_version"] == 1
+    assert state["attn_head_count"] == params.attn_head_count
+    assert set(state["weights"]) == {
+        "w_token_emb",
+        "w_position_emb",
+        "w_transformer_attn_q",
+        "w_transformer_attn_k",
+        "w_transformer_attn_v",
+        "w_transformer_attn_out",
+        "w_transformer_mlp_fc1",
+        "w_transformer_mlp_fc2",
+        "w_lm_head",
+    }
+    assert state["vocab"] == tokenizer.vocab
+
+
+def test_load_model_rejects_unsupported_format_version(temp_data_dir):
+    # GIVEN a checkpoint file declaring a future format version
+    path = temp_data_dir / "future.json"
+    path.write_text(json.dumps({"format_version": 999}), encoding="utf-8")
+
+    # WHEN loading it THEN a clear error is raised
+    with pytest.raises(ValueError, match="format version"):
+        load_model(path)
+
+
+def test_load_model_rejects_non_json_file(temp_data_dir):
+    # GIVEN a file that is not valid JSON
+    path = temp_data_dir / "corrupt.json"
+    path.write_bytes(b"\x80\x04\x95not-json")
+
+    # WHEN loading it THEN a friendly error is raised instead of crashing
+    with pytest.raises(ValueError, match="not a valid"):
+        load_model(path)
+
+
+def test_load_model_round_trip_preserves_non_ascii_vocab(params, temp_data_dir):
+    # GIVEN a tokenizer trained on Cyrillic text
+    cyrillic_tokenizer = Tokenizer()
+    cyrillic_tokenizer.train(["Київ", "Львів"])
+
+    # WHEN saving and loading the model
+    saved_path = save_model(params, cyrillic_tokenizer)
+    _, loaded_tokenizer = load_model(saved_path)
+
+    # THEN the Cyrillic vocabulary survives the round trip
+    assert loaded_tokenizer.vocab == cyrillic_tokenizer.vocab
+    assert loaded_tokenizer.encode("Київ") == cyrillic_tokenizer.encode("Київ")
