@@ -3,15 +3,13 @@ import random
 
 import pytest
 
-from tests.helpers import maybe_import
-
-GPTParams = maybe_import("zerogpt.model", "GPTParams")
-gpt = maybe_import("zerogpt.model", "gpt")
-log_softmax = maybe_import("zerogpt.ops", "log_softmax")
-Tokenizer = maybe_import("zerogpt.tokenizer", "Tokenizer")
-train = maybe_import("zerogpt.runner", "train")
-predict = maybe_import("zerogpt.runner", "predict")
-make_sample_predictions = maybe_import("zerogpt.runner", "make_sample_predictions")
+from zerogpt.model import GPTParams
+from zerogpt.model import gpt
+from zerogpt.ops import log_softmax
+from zerogpt.runner import make_sample_predictions
+from zerogpt.runner import predict
+from zerogpt.runner import train
+from zerogpt.tokenizer import Tokenizer
 
 
 def _untrained_model(tokenizer, max_sequence_length=10):

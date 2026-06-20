@@ -2,12 +2,10 @@ import json
 
 import pytest
 
-from tests.helpers import maybe_import
-
-GPTParams = maybe_import("zerogpt.model", "GPTParams")
-load_model = maybe_import("zerogpt.serialization", "load_model")
-save_model = maybe_import("zerogpt.serialization", "save_model")
-Tokenizer = maybe_import("zerogpt.tokenizer", "Tokenizer")
+from zerogpt.model import GPTParams
+from zerogpt.serialization import load_model
+from zerogpt.serialization import save_model
+from zerogpt.tokenizer import Tokenizer
 
 
 @pytest.fixture

@@ -2,16 +2,14 @@ import math
 
 import pytest
 
-from tests.helpers import maybe_import
-
-AutoGradNode = maybe_import("zerogpt.autograd", "AutoGradNode")
-linear = maybe_import("zerogpt.ops", "linear")
-log_softmax = maybe_import("zerogpt.ops", "log_softmax")
-mat_vec_product = maybe_import("zerogpt.ops", "mat_vec_product")
-rms_norm = maybe_import("zerogpt.ops", "rms_norm")
-softmax = maybe_import("zerogpt.ops", "softmax")
-vec_dot_product = maybe_import("zerogpt.ops", "vec_dot_product")
-vec_sum = maybe_import("zerogpt.ops", "vec_sum")
+from zerogpt.autograd import AutoGradNode
+from zerogpt.ops import linear
+from zerogpt.ops import log_softmax
+from zerogpt.ops import mat_vec_product
+from zerogpt.ops import rms_norm
+from zerogpt.ops import softmax
+from zerogpt.ops import vec_dot_product
+from zerogpt.ops import vec_sum
 
 
 def _vec(values):

@@ -2,12 +2,10 @@ import random
 
 import pytest
 
-from tests.helpers import maybe_import
-
-AutoGradNode = maybe_import("zerogpt.autograd", "AutoGradNode")
-GPTParams = maybe_import("zerogpt.model", "GPTParams")
-create_random_matrix = maybe_import("zerogpt.model", "create_random_matrix")
-gpt = maybe_import("zerogpt.model", "gpt")
+from zerogpt.autograd import AutoGradNode
+from zerogpt.model import GPTParams
+from zerogpt.model import create_random_matrix
+from zerogpt.model import gpt
 
 
 @pytest.fixture

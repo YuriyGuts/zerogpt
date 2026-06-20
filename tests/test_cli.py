@@ -2,11 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from tests.helpers import maybe_import
-
-cli = maybe_import("zerogpt.cli")
-build_parser = maybe_import("zerogpt.cli", "build_parser")
-main = maybe_import("zerogpt.cli", "main")
+from zerogpt import cli
+from zerogpt.cli import build_parser
+from zerogpt.cli import main
 
 
 def test_train_parser_defaults():

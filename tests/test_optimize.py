@@ -1,9 +1,7 @@
 import pytest
 
-from tests.helpers import maybe_import
-
-AutoGradNode = maybe_import("zerogpt.autograd", "AutoGradNode")
-AdamOptimizer = maybe_import("zerogpt.optimize", "AdamOptimizer")
+from zerogpt.autograd import AutoGradNode
+from zerogpt.optimize import AdamOptimizer
 
 
 def test_step_moves_param_opposite_to_positive_gradient():

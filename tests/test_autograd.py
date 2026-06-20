@@ -2,10 +2,8 @@ import math
 
 import pytest
 
-from tests.helpers import maybe_import
-
-AutoGradNode = maybe_import("zerogpt.autograd", "AutoGradNode")
-topological_sort = maybe_import("zerogpt.autograd", "topological_sort")
+from zerogpt.autograd import AutoGradNode
+from zerogpt.autograd import topological_sort
 
 
 def test_autograd_node_default_grad_and_no_children():

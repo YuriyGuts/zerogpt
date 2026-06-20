@@ -1,8 +1,6 @@
 import pytest
 
-from tests.helpers import maybe_import
-
-Tokenizer = maybe_import("zerogpt.tokenizer", "Tokenizer")
+from zerogpt.tokenizer import Tokenizer
 
 
 @pytest.fixture
