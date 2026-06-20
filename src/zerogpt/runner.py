@@ -53,7 +53,7 @@ def train(
         batch_losses = []
 
         for doc in batch_docs:
-            kv_cache = [[] for _ in range(gpt_params.transformer_block_count)]
+            kv_cache = gpt_params.create_kv_cache()
             for position_id, token_id in enumerate(doc[:-1]):
                 output_logits = gpt(
                     token_id=token_id,
@@ -101,7 +101,7 @@ def predict(
     if len(tokens) > gpt_params.max_sequence_length:
         raise ValueError("Input sequence too long")
 
-    kv_cache = [[] for _ in range(gpt_params.transformer_block_count)]
+    kv_cache = gpt_params.create_kv_cache()
 
     position_id = 0
     while True:

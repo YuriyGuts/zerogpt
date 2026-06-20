@@ -213,7 +213,7 @@ def _zero_out_block_weights(params):
 
 def test_gpt_output_length_equals_vocab_size(small_params):
     # GIVEN an empty cache
-    kv_cache = [[] for _ in range(small_params.transformer_block_count)]
+    kv_cache = small_params.create_kv_cache()
 
     # WHEN running the forward pass
     logits = gpt(token_id=0, position_id=0, params=small_params, kv_cache=kv_cache)
@@ -224,15 +224,15 @@ def test_gpt_output_length_equals_vocab_size(small_params):
 
 def test_gpt_appends_to_kv_cache_each_call(small_params):
     # GIVEN an empty cache
-    kv_cache = [[] for _ in range(small_params.transformer_block_count)]
+    kv_cache = small_params.create_kv_cache()
 
     # WHEN running two forward passes
     gpt(token_id=0, position_id=0, params=small_params, kv_cache=kv_cache)
     gpt(token_id=1, position_id=1, params=small_params, kv_cache=kv_cache)
 
     # THEN each block's cache has two entries
-    for block_cache in kv_cache:
-        assert len(block_cache) == 2
+    for block_idx in range(len(kv_cache)):
+        assert kv_cache.token_count(block_idx) == 2
 
 
 def test_gpt_output_is_zero_when_lm_head_is_zero(small_params):
@@ -240,7 +240,7 @@ def test_gpt_output_is_zero_when_lm_head_is_zero(small_params):
     rows = len(small_params.w_lm_head)
     cols = len(small_params.w_lm_head[0])
     small_params.w_lm_head = [[AutoGradNode(0.0) for _ in range(cols)] for _ in range(rows)]
-    kv_cache = [[] for _ in range(small_params.transformer_block_count)]
+    kv_cache = small_params.create_kv_cache()
 
     # WHEN running the forward pass
     logits = gpt(token_id=0, position_id=0, params=small_params, kv_cache=kv_cache)
@@ -265,7 +265,7 @@ def test_gpt_with_zeroed_blocks_collapses_to_lm_head_over_rmsnorm():
     params.w_position_emb = _matrix([[0.0, 0.0]])
     params.w_lm_head = _matrix([[1.0, 0.0], [0.0, 1.0]])
     _zero_out_block_weights(params)
-    kv_cache = [[] for _ in range(params.transformer_block_count)]
+    kv_cache = params.create_kv_cache()
 
     # WHEN running token 0 at position 0
     logits = gpt(token_id=0, position_id=0, params=params, kv_cache=kv_cache)
@@ -293,9 +293,9 @@ def test_gpt_position_embedding_changes_output():
     _zero_out_block_weights(params)
 
     # WHEN running the same token at both positions (fresh cache each time)
-    cache_0 = [[]]
+    cache_0 = params.create_kv_cache()
     logits_at_pos_0 = gpt(token_id=0, position_id=0, params=params, kv_cache=cache_0)
-    cache_1 = [[]]
+    cache_1 = params.create_kv_cache()
     logits_at_pos_1 = gpt(token_id=0, position_id=1, params=params, kv_cache=cache_1)
 
     # THEN each output is the first component of rms_norm(token_emb + position_emb).
@@ -324,7 +324,7 @@ def test_gpt_single_entry_attention_writes_v_into_residual():
     _zero_out_block_weights(params)
     params.w_transformer_attn_v[0] = _matrix([[0.0, 0.0], [0.0, 1.0]])
     params.w_transformer_attn_out[0] = _matrix([[1.0, 0.0], [0.0, 1.0]])
-    kv_cache = [[]]
+    kv_cache = params.create_kv_cache()
 
     # WHEN running the forward pass
     logits = gpt(token_id=0, position_id=0, params=params, kv_cache=kv_cache)

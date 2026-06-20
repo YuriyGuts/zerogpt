@@ -21,6 +21,28 @@ def create_random_matrix(rows: int, cols: int, stddev: float = 0.02) -> Matrix:
     ]
 
 
+class KVCache:
+    def __init__(self, block_count: int) -> None:
+        self._keys: list[list[Vector]] = [[] for _ in range(block_count)]
+        self._values: list[list[Vector]] = [[] for _ in range(block_count)]
+
+    def append(self, block_idx: int, key: Vector, value: Vector) -> None:
+        self._keys[block_idx].append(key)
+        self._values[block_idx].append(value)
+
+    def keys(self, block_idx: int) -> list[Vector]:
+        return self._keys[block_idx]
+
+    def values(self, block_idx: int) -> list[Vector]:
+        return self._values[block_idx]
+
+    def token_count(self, block_idx: int) -> int:
+        return len(self._keys[block_idx])
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+
 @dataclass(slots=True)
 class GPTParams:
     @property
@@ -98,6 +120,9 @@ class GPTParams:
             w_lm_head=create_random_matrix(vocab_size, embedding_dim),
         )
 
+    def create_kv_cache(self) -> KVCache:
+        return KVCache(self.transformer_block_count)
+
     def __iter__(self) -> Iterator[AutoGradNode]:
         yield from chain(
             chain.from_iterable(self.w_token_emb),
@@ -116,8 +141,7 @@ def gpt(
     token_id: int,
     position_id: int,
     params: GPTParams,
-    # [block_idx][position_id] -> (k, v)
-    kv_cache: list[list[tuple[Vector, Vector]]],
+    kv_cache: KVCache,
 ) -> Vector:
     token_emb = params.w_token_emb[token_id]
     position_emb = params.w_position_emb[position_id]
@@ -132,7 +156,10 @@ def gpt(
         query = linear(x, params.w_transformer_attn_q[block_idx])
         key = linear(x, params.w_transformer_attn_k[block_idx])
         value = linear(x, params.w_transformer_attn_v[block_idx])
-        kv_cache[block_idx].append((key, value))
+        kv_cache.append(block_idx, key, value)
+
+        keys = kv_cache.keys(block_idx)
+        values = kv_cache.values(block_idx)
 
         # Query  ***|***|***|***
         # Key    ***|***|***|***
@@ -146,8 +173,8 @@ def gpt(
             head_end_idx = params.attn_head_dim * (head_idx + 1)
 
             q_head = query[head_start_idx:head_end_idx]
-            k_head = [k[head_start_idx:head_end_idx] for k, _ in kv_cache[block_idx]]
-            v_head = [v[head_start_idx:head_end_idx] for _, v in kv_cache[block_idx]]
+            k_head = [k[head_start_idx:head_end_idx] for k in keys]
+            v_head = [v[head_start_idx:head_end_idx] for v in values]
 
             attn_logits = [vec_dot_product(q_head, k) / params.attn_head_dim**0.5 for k in k_head]
             attn_probs = softmax(attn_logits)
