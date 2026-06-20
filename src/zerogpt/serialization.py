@@ -1,3 +1,5 @@
+"""Save and load models as plain JSON checkpoints."""
+
 import json
 import os
 from pathlib import Path
@@ -17,6 +19,20 @@ def save_model(
     extra_id: str = "",
     path: Path | None = None,
 ) -> Path:
+    """
+    Save a model and its tokenizer to a JSON checkpoint.
+
+    Parameters
+    ----------
+    extra_id
+        An optional suffix for the auto-generated filename (e.g. a checkpoint id).
+    path
+        An explicit output path. When omitted, the file is auto-named in the data directory.
+
+    Returns
+    -------
+    The path the checkpoint was written to.
+    """
     if path is None:
         model_filename = (
             "gpt"
@@ -43,6 +59,18 @@ def save_model(
 
 
 def load_model(path: Path) -> tuple[GPTParams, Tokenizer]:
+    """
+    Load a model and tokenizer from a JSON checkpoint.
+
+    Returns
+    -------
+    The restored model parameters and tokenizer.
+
+    Raises
+    ------
+    ValueError
+        If the file is not a valid checkpoint or has an unsupported format version.
+    """
     try:
         with open(path, encoding="utf-8") as f:
             artifact = json.load(f)

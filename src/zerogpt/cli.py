@@ -1,3 +1,5 @@
+"""Command-line interface for training and running the model."""
+
 import argparse
 import gc
 import random
@@ -14,6 +16,12 @@ DEFAULT_DATA_PATH = serialization.default_data_dir / "ua-settlement-names.txt"
 
 @contextmanager
 def gc_disabled() -> Iterator[None]:
+    """
+    Temporarily disable the garbage collector to speed up training.
+
+    Experiments show that creating a lot of `AutoGradNode` objects often triggers the GC,
+    which fails to reclaim any objects and effectively just wastes time.
+    """
     was_enabled = gc.isenabled()
     gc.disable()
     try:
@@ -24,6 +32,7 @@ def gc_disabled() -> Iterator[None]:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser with the `train` and `predict` subcommands."""
     parser = argparse.ArgumentParser(prog="zerogpt", description="Train and run a tiny GPT.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -119,6 +128,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_train(args: argparse.Namespace) -> None:
+    """Run the `train` subcommand."""
     random.seed(args.seed)
 
     try:
@@ -144,6 +154,7 @@ def run_train(args: argparse.Namespace) -> None:
 
 
 def run_predict(args: argparse.Namespace) -> None:
+    """Run the `predict` subcommand, interactively or for a single prompt."""
     if args.seed is not None:
         random.seed(args.seed)
 
@@ -187,6 +198,7 @@ def run_predict(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Parse command-line arguments and run the chosen subcommand."""
     parser = build_parser()
     args = parser.parse_args(argv)
 

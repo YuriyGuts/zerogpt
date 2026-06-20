@@ -1,3 +1,5 @@
+"""A simple reverse-mode automatic differentiation engine based on operator overloading."""
+
 from __future__ import annotations
 
 import math
@@ -12,10 +14,25 @@ _TOPO_FINISHED = 2
 
 @dataclass(slots=True)
 class AutoGradNode:
+    """
+    Represents a single scalar value in an autograd computation graph.
+
+    When a node interacts with other operands, it builds up the graph under the hood.
+    """
+
+    # The value of the node.
     value: float
+
+    # The gradient accumulated in the node.
     grad: float = 0.0
+
+    # The nodes this value was computed from.
     children: tuple[AutoGradNode, ...] = ()
+
+    # The local derivative of this value with respect to each child.
     grads_wrt_children: tuple[float, ...] = ()
+
+    # Temporary state used while topologically sorting the graph.
     topo_state: int = _TOPO_UNVISITED
 
     def __add__(self, other: float | AutoGradNode) -> AutoGradNode:
@@ -170,6 +187,7 @@ class AutoGradNode:
         return self.value.__format__(format_spec)
 
     def log(self) -> AutoGradNode:
+        """Return the natural logarithm as a new node."""
         # f = ln a
         # df/da = 1 / a
         return AutoGradNode(
@@ -179,6 +197,7 @@ class AutoGradNode:
         )
 
     def exp(self) -> AutoGradNode:
+        """Return e raised to this value as a new node."""
         # f = e ** a
         # df/da = e ** a
         value = math.exp(self.value)
@@ -189,6 +208,7 @@ class AutoGradNode:
         )
 
     def relu(self) -> AutoGradNode:
+        """Return the ReLU activation as a new node."""
         # f = max(0, a)
         # df/da = 1 if a > 0 else 0
         return AutoGradNode(
@@ -199,6 +219,7 @@ class AutoGradNode:
 
     @classmethod
     def sum(cls, gen: Iterable[AutoGradNode]) -> AutoGradNode:
+        """Sum many nodes into a single node (an n-ary operator for efficiency)."""
         # f = a + b + c + d + ...
         # df/da = 1
         # df/db = 1
@@ -211,6 +232,7 @@ class AutoGradNode:
         )
 
     def backpropagate(self) -> None:
+        """Propagate the gradient from this node back to every child node."""
         self.grad = 1.0
         topo_order = topological_sort(self)
         for node in reversed(topo_order):
@@ -219,8 +241,10 @@ class AutoGradNode:
 
 
 def topological_sort(final_node: AutoGradNode) -> list[AutoGradNode]:
+    """Return all nodes feeding into `final_node`, in topological order."""
     result = []
 
+    # Use an explicit stack instead of recursion to avoid hitting the system recursion limit.
     stack = deque()
     final_node.topo_state = _TOPO_IN_PROGRESS
     stack.append((final_node, iter(final_node.children)))

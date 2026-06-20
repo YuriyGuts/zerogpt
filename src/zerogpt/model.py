@@ -1,3 +1,5 @@
+"""The forward pass and parameters of a GPT-2-like model."""
+
 from __future__ import annotations
 
 import random
@@ -16,35 +18,44 @@ from zerogpt.ops import vec_sum
 
 
 def create_random_matrix(rows: int, cols: int, stddev: float = 0.02) -> Matrix:
+    """Create a matrix of the given shape filled with Gaussian noise."""
     return [
         [AutoGradNode(random.gauss(mu=0.0, sigma=stddev)) for _ in range(cols)] for _ in range(rows)
     ]
 
 
 def matrix_values(matrix: Matrix) -> list[list[float]]:
+    """Extract the plain float values from a matrix of nodes."""
     return [[node.value for node in row] for row in matrix]
 
 
 def matrix_from_values(values: list[list[float]]) -> Matrix:
+    """Build a matrix of autograd nodes from plain float values."""
     return [[AutoGradNode(value) for value in row] for row in values]
 
 
 class KVCache:
+    """Per-transformer-block key/value cache that grows by one position per forward pass."""
+
     def __init__(self, block_count: int) -> None:
         self._keys: list[list[Vector]] = [[] for _ in range(block_count)]
         self._values: list[list[Vector]] = [[] for _ in range(block_count)]
 
     def append(self, block_idx: int, key: Vector, value: Vector) -> None:
+        """Append a key/value pair for the given block."""
         self._keys[block_idx].append(key)
         self._values[block_idx].append(value)
 
     def keys(self, block_idx: int) -> list[Vector]:
+        """Return the cached keys for the given block."""
         return self._keys[block_idx]
 
     def values(self, block_idx: int) -> list[Vector]:
+        """Return the cached values for the given block."""
         return self._values[block_idx]
 
     def token_count(self, block_idx: int) -> int:
+        """Return the number of positions cached for the given block."""
         return len(self._keys[block_idx])
 
     def __len__(self) -> int:
@@ -53,24 +64,31 @@ class KVCache:
 
 @dataclass(slots=True)
 class GPTParams:
+    """The learnable weights of the GPT model."""
+
     @property
     def embedding_dim(self) -> int:
+        """The width of the embeddings."""
         return len(self.w_token_emb[0])
 
     @property
     def vocab_size(self) -> int:
+        """The number of tokens in the vocabulary."""
         return len(self.w_token_emb)
 
     @property
     def max_sequence_length(self) -> int:
+        """The maximum number of positions the model supports."""
         return len(self.w_position_emb)
 
     @property
     def transformer_block_count(self) -> int:
+        """The number of transformer blocks."""
         return len(self.w_transformer_attn_q)
 
     @property
     def attn_head_dim(self) -> int:
+        """The width of each attention head."""
         return self.embedding_dim // self.attn_head_count
 
     attn_head_count: int
@@ -97,6 +115,24 @@ class GPTParams:
         attn_head_count: int = 4,
         transformer_mlp_fanout_factor: int = 4,
     ) -> GPTParams:
+        """
+        Create a model with randomly initialized weights.
+
+        Parameters
+        ----------
+        vocab_size
+            The number of tokens in the vocabulary.
+        embedding_dim
+            The width of the embeddings and the residual stream.
+        max_sequence_length
+            The maximum number of positions the model supports.
+        transformer_block_count
+            The number of transformer blocks.
+        attn_head_count
+            The number of attention heads per block.
+        transformer_mlp_fanout_factor
+            The hidden-layer expansion factor of each MLP block.
+        """
         return GPTParams(
             attn_head_count=attn_head_count,
             w_token_emb=create_random_matrix(vocab_size, embedding_dim),
@@ -129,9 +165,11 @@ class GPTParams:
         )
 
     def create_kv_cache(self) -> KVCache:
+        """Create an empty KV cache sized for this model."""
         return KVCache(self.transformer_block_count)
 
     def to_dict(self) -> dict[str, object]:
+        """Serialize the weights and attributes into a plain JSON-serializable dict."""
         return {
             "attn_head_count": self.attn_head_count,
             "weights": {
@@ -149,6 +187,7 @@ class GPTParams:
 
     @classmethod
     def from_dict(cls, data: dict) -> GPTParams:
+        """Rebuild a model from a serialized dict produced by `to_dict`."""
         weights = data["weights"]
         return cls(
             attn_head_count=data["attn_head_count"],
@@ -185,6 +224,26 @@ def gpt(
     params: GPTParams,
     kv_cache: KVCache,
 ) -> Vector:
+    """
+    Run one forward pass and return the logits for the next token.
+
+    Each call appends the new key/value to the KV cache and attends over all cached positions.
+
+    Parameters
+    ----------
+    token_id
+        The id of the current input token.
+    position_id
+        The position of the current token in the sequence.
+    params
+        The model weights.
+    kv_cache
+        The running key/value cache, mutated in place.
+
+    Returns
+    -------
+    The unnormalized logits over the vocabulary.
+    """
     token_emb = params.w_token_emb[token_id]
     position_emb = params.w_position_emb[position_id]
     x = vec_sum(token_emb, position_emb)
@@ -218,6 +277,7 @@ def gpt(
             k_head = [k[head_start_idx:head_end_idx] for k in keys]
             v_head = [v[head_start_idx:head_end_idx] for v in values]
 
+            # Scaled dot-product attention over every cached position.
             attn_logits = [vec_dot_product(q_head, k) / params.attn_head_dim**0.5 for k in k_head]
             attn_probs = softmax(attn_logits)
             for dim in range(params.attn_head_dim):
@@ -235,6 +295,7 @@ def gpt(
         x = linear(x, params.w_transformer_mlp_fc2[block_idx])
         x = vec_sum(x, x_residual)
 
+    # Final output: project the stream to vocabulary logits.
     x = rms_norm(x)
     x = linear(x, params.w_lm_head)
 

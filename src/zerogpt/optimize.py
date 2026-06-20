@@ -1,9 +1,13 @@
+"""Parameter optimization methods."""
+
 from collections.abc import Sequence
 
 from zerogpt.autograd import AutoGradNode
 
 
 class AdamOptimizer:
+    """Adam optimizer over a flat list of autograd parameters."""
+
     def __init__(
         self,
         params: Sequence[AutoGradNode],
@@ -22,6 +26,7 @@ class AdamOptimizer:
         self.v = [0.0] * len(self.params)
 
     def step(self) -> None:
+        """Update every parameter from its accumulated gradient, then reset the gradient."""
         self.timestep_idx += 1
         for param_idx, param in enumerate(self.params):
             self.m[param_idx] = self.beta1 * self.m[param_idx] + (1.0 - self.beta1) * param.grad

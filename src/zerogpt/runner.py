@@ -1,3 +1,5 @@
+"""Training and inference loops."""
+
 import itertools
 import random
 import time
@@ -26,11 +28,43 @@ def train(
     transformer_block_count: int = 1,
     checkpoint_freq: int | None = None,
 ) -> tuple[GPTParams, Tokenizer]:
+    """
+    Train a model and tokenizer on a list of documents.
+
+    Parameters
+    ----------
+    docs
+        The training documents.
+    iter_count
+        The number of training iterations (batches).
+    batch_size
+        The number of documents per batch.
+    learning_rate
+        The learning rate of the optimizer.
+    embedding_dim
+        The embedding width (must be divisible by the attention head count).
+    max_sequence_length
+        The maximum sequence length (longer documents are truncated).
+    transformer_block_count
+        The number of transformer blocks.
+    checkpoint_freq
+        Save a checkpoint every N iterations, or None to disable.
+
+    Returns
+    -------
+    The trained model parameters and tokenizer.
+
+    Raises
+    ------
+    ValueError
+        If `embedding_dim` is not divisible by the attention head count.
+    """
     if embedding_dim % ATTN_HEAD_COUNT != 0:
-        raise ValueError(
+        msg = (
             f"embedding_dim ({embedding_dim}) must be divisible by "
             f"attn_head_count ({ATTN_HEAD_COUNT})."
         )
+        raise ValueError(msg)
 
     print("Training the tokenizer...")
     tokenizer = Tokenizer()
@@ -67,6 +101,8 @@ def train(
 
         for doc in batch_docs:
             kv_cache = gpt_params.create_kv_cache()
+
+            # At each position, predict the next token and compute its loss.
             for position_id, token_id in enumerate(doc[:-1]):
                 output_logits = gpt(
                     token_id=token_id,
@@ -81,9 +117,10 @@ def train(
 
         batch_loss = AutoGradNode.sum(batch_losses) / len(batch_losses)
         batch_loss.backpropagate()
+        optimizer.step()
+
         batch_loss_history.append(batch_loss.value)
         moving_avg_batch_loss = sum(batch_loss_history) / len(batch_loss_history)
-        optimizer.step()
 
         iters_done = iter_idx + 1
         iter_duration = time.monotonic() - iter_start_time
@@ -110,6 +147,23 @@ def predict(
     prompt: str = "",
     temperature: float = 1.0,
 ) -> str:
+    """
+    Generate a continuation for the prompt by sampling one token at a time.
+
+    Parameters
+    ----------
+    temperature
+        The sampling temperature. Lower values make the output more deterministic.
+
+    Returns
+    -------
+    The initial prompt completed with the generated text.
+
+    Raises
+    ------
+    ValueError
+        If the prompt is longer than the model's maximum sequence length.
+    """
     tokens = tokenizer.encode(prompt)[:-1]
     if len(tokens) > gpt_params.max_sequence_length:
         raise ValueError("Input sequence too long")
@@ -149,6 +203,7 @@ def make_sample_predictions(
     tokenizer: Tokenizer,
     sample_size: int,
 ) -> None:
+    """Print some sampled generations at different temperatures."""
     for temperature in (1.0, 0.5):
         print(f"----- t={temperature:.1f} -----")
         for _ in range(sample_size):
