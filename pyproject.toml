@@ -6,11 +6,13 @@ readme = "README.md"
 authors = [
     { name = "Yuriy Guts", email = "yuriy.guts@gmail.com" }
 ]
+license = "BSD-3-Clause"
 requires-python = ">=3.12"
+keywords = ["llm", "gpt"]
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/YuriyGuts/zerogpt"
+repository = "https://github.com/YuriyGuts/zerogpt"
 
 [dependency-groups]
 dev = [
@@ -65,3 +67,6 @@ ignore = [
     "D",        # tests: no docstrings required
     "PLR2004",  # tests: magic numbers are fine
 ]
+
+[tool.ty.src]
+exclude = ["tests/"]

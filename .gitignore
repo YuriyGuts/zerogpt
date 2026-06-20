@@ -1,5 +1,6 @@
 # Model checkpoints
 data/gpt-*.json
+!data/gpt-demo-checkpoint.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
