@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -64,7 +66,7 @@ class GPTParams:
         transformer_block_count: int,
         attn_head_count: int = 4,
         transformer_mlp_fanout_factor: int = 4,
-    ):
+    ) -> GPTParams:
         return GPTParams(
             attn_head_count=attn_head_count,
             w_token_emb=create_random_matrix(vocab_size, embedding_dim),

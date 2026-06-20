@@ -1,5 +1,6 @@
 import gc
 import random
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from zerogpt.serialization import load_model
 
 
 @contextmanager
-def gc_disabled():
+def gc_disabled() -> Iterator[None]:
     was_enabled = gc.isenabled()
     gc.disable()
     try:
