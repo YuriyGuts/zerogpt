@@ -162,6 +162,21 @@ def test_load_model_rejects_non_json_file(temp_data_dir):
         load_model(path)
 
 
+def test_save_model_writes_to_explicit_path(params, tokenizer, tmp_path):
+    # GIVEN an explicit output path inside a not-yet-existing directory
+    output_path = tmp_path / "nested" / "deep" / "model.json"
+
+    # WHEN saving the model there
+    saved_path = save_model(params, tokenizer, path=output_path)
+
+    # THEN the file is created (parents and all) and round-trips
+    assert saved_path == output_path
+    assert output_path.exists()
+    loaded_params, loaded_tokenizer = load_model(output_path)
+    assert [p.value for p in loaded_params] == [p.value for p in params]
+    assert loaded_tokenizer.vocab == tokenizer.vocab
+
+
 def test_load_model_round_trip_preserves_non_ascii_vocab(params, temp_data_dir):
     # GIVEN a tokenizer trained on Cyrillic text
     cyrillic_tokenizer = Tokenizer()

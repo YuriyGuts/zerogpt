@@ -15,28 +15,31 @@ def save_model(
     gpt_params: GPTParams,
     tokenizer: Tokenizer,
     extra_id: str = "",
+    path: Path | None = None,
 ) -> Path:
-    model_filename = (
-        "gpt"
-        f"-vocab-{gpt_params.vocab_size}"
-        f"-seq-{gpt_params.max_sequence_length}"
-        f"-emb-{gpt_params.embedding_dim}"
-        f"-transf-{gpt_params.transformer_block_count}"
-        f"-attn-{gpt_params.attn_head_count}"
-        f"{'-' + extra_id if extra_id else ''}"
-        ".json"
-    )
+    if path is None:
+        model_filename = (
+            "gpt"
+            f"-vocab-{gpt_params.vocab_size}"
+            f"-seq-{gpt_params.max_sequence_length}"
+            f"-emb-{gpt_params.embedding_dim}"
+            f"-transf-{gpt_params.transformer_block_count}"
+            f"-attn-{gpt_params.attn_head_count}"
+            f"{'-' + extra_id if extra_id else ''}"
+            ".json"
+        )
+        path = data_dir / model_filename
 
     artifact = {
         "format_version": FORMAT_VERSION,
         "vocab": tokenizer.vocab,
         **gpt_params.to_dict(),
     }
-    artifact_save_path = data_dir / model_filename
-    with open(artifact_save_path, "w", encoding="utf-8") as f:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(artifact, f, ensure_ascii=False, allow_nan=False)
 
-    return artifact_save_path
+    return path
 
 
 def load_model(path: Path) -> tuple[GPTParams, Tokenizer]:

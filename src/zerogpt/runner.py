@@ -12,28 +12,41 @@ from zerogpt.optimize import AdamOptimizer
 from zerogpt.serialization import save_model
 from zerogpt.tokenizer import Tokenizer
 
+ATTN_HEAD_COUNT = 4
+MLP_FANOUT_FACTOR = 4
+
 
 def train(
     docs: list[str],
     iter_count: int,
     batch_size: int,
+    learning_rate: float = 0.01,
+    embedding_dim: int = 16,
+    max_sequence_length: int = 20,
+    transformer_block_count: int = 1,
     checkpoint_freq: int | None = None,
 ) -> tuple[GPTParams, Tokenizer]:
+    if embedding_dim % ATTN_HEAD_COUNT != 0:
+        raise ValueError(
+            f"embedding_dim ({embedding_dim}) must be divisible by "
+            f"attn_head_count ({ATTN_HEAD_COUNT})."
+        )
+
     print("Training the tokenizer...")
     tokenizer = Tokenizer()
     tokenizer.train(docs)
 
     gpt_params = GPTParams.create(
         vocab_size=tokenizer.vocab_size,
-        embedding_dim=16,
-        max_sequence_length=20,
-        transformer_block_count=1,
-        attn_head_count=4,
-        transformer_mlp_fanout_factor=4,
+        embedding_dim=embedding_dim,
+        max_sequence_length=max_sequence_length,
+        transformer_block_count=transformer_block_count,
+        attn_head_count=ATTN_HEAD_COUNT,
+        transformer_mlp_fanout_factor=MLP_FANOUT_FACTOR,
     )
     optimizer = AdamOptimizer(
         params=list(gpt_params),
-        learning_rate=0.01,
+        learning_rate=learning_rate,
         beta1=0.9,
         beta2=0.999,
     )
@@ -76,10 +89,10 @@ def train(
         iter_duration = time.monotonic() - iter_start_time
 
         print(
-            f"Iter {iters_done} / {iter_count}"
-            f" | Loss {batch_loss:10.5f}"
-            f" | Avg({batch_loss_history.maxlen}) {moving_avg_batch_loss:10.5f}"
-            f" | Duration {iter_duration:.3} sec"
+            f"Iteration {iters_done:5d} / {iter_count:5d}"
+            f" | Loss {batch_loss:8.5f}"
+            f" | Avg({batch_loss_history.maxlen}) {moving_avg_batch_loss:8.5f}"
+            f" | Duration {iter_duration:#.3} sec"
         )
 
         if checkpoint_freq and iters_done % checkpoint_freq == 0:
